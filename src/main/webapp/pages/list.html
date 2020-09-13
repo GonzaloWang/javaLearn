@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="../js/vue.js"></script>
+    <script src="../js/axios.min.js"></script>
+    <script src="../element-ui/lib/index.js"></script>
+    <link rel="stylesheet" href="../element-ui/lib/theme-chalk/index.css">
+</head>
+<body>
+<div id="app">
+    <el-table
+            :data="tableData"
+            style="width: 100%">
+        <el-table-column
+                prop="id"
+                label="id"
+                width="180">
+        </el-table-column>
+        <el-table-column
+                prop="name"
+                label="姓名"
+                width="180">
+        </el-table-column>
+        <el-table-column
+                prop="money"
+                label="账户余额">
+        </el-table-column>
+
+        <el-table-column
+                label="操作"
+                width="180">
+            <template slot-scope="scope">
+                <!-- TODO: scope.row获取的是当前行这条记录 -->
+                <el-button type="primary" size="mini" @click="findContactById(scope.row.id)"><i
+                        class="fa fa-pencil-square-o"></i> 修改
+                </el-button>
+                <br>
+                <el-button type="primary" size="mini" @click="deleteContact(scope.row.id)"><i
+                        class="fa fa-pencil-square-o"></i> 删除</el-button>
+            </template>
+        </el-table-column>
+    </el-table>
+    <div>
+        <el-button type="success" @click="addDialog = true">
+            <i class="fa fa-plus"></i> 新增联系人
+        </el-button>
+    </div>
+    <!-- TODO:新增联系人 -->
+    <!--<el-button type="text" @click="addDialog = true">添加</el-button>-->
+    <el-dialog title="添加联系人" :visible.sync="addDialog">
+        <!-- form表单 -->
+        <el-form :model="addContact" :rules="rules" ref="addContact"
+                 label-width="100px" class="demo-addContact">
+            <el-form-item label="用户名" prop="name">
+                <el-input v-model="addContact.name"></el-input>
+            </el-form-item>
+            <el-form-item label="账户余额" prop="money">
+                <el-input v-model="addContact.money"></el-input>
+            </el-form-item>
+            <
+
+            <el-form-item>
+                <el-button type="primary" @click="submitAddContact()">添加联系人</el-button>
+                <el-button @click="resetForm('addContact')">重置</el-button>
+            </el-form-item>
+        </el-form>
+    </el-dialog>
+
+    <el-dialog title="修改联系人" :visible.sync="updateDialog">
+        <el-form :model="contact" :rules="rules" ref="contact"
+                 label-width="100px" class="demo-contact">
+            <el-form-item label="用户名" prop="name">
+                <el-input v-model="contact.name"></el-input>
+            </el-form-item>
+            <el-form-item label="账户余额" prop="money">
+                <el-input v-model="contact.money"></el-input>
+            </el-form-item>
+            <el-form-item>
+                <el-button type="primary" @click="updateContact('contact')">修改联系人</el-button>
+                <el-button @click="resetForm('contact')">重置</el-button>
+            </el-form-item>
+        </el-form>
+    </el-dialog>
+</div>
+</body>
+<script>
+    new Vue({
+        el:"#app",
+        data: {
+            tableData: [],
+            addDialog: false,
+            updateDialog: false, // 添加联系人的对话框 控制标记
+            addContact:{ // 添加联系人时对应的表单数据
+                name:'',
+                money:''
+            },
+            // 修改时封装修改数据的对象
+            contact:{
+                id:'',
+                name:'',
+                money:''
+            },
+        },
+        methods:{
+            findAll(){
+                axios.get(`/account/findAll`).then(resp=>{
+                    this.tableData = resp.data;
+                })
+            },
+
+            // 添加联系人
+            submitAddContact(){
+                axios({
+                    method:"post",
+                    url:`/account/addAccount`,
+                    params:this.addContact}).
+                // axios.post(`/contact?action=addContact`,
+                //     this.addContact).
+                then(resp=>{
+                    // 服务器返回 boolean (添加成功或失败)
+                    if(resp.data){
+                        // 将对话框关闭
+                        this.addDialog = false;
+                        // 分页查询联系人信息
+                        this.findAll();
+                    }else{
+                        // element提供的警告框
+                        this.$confirm('服务器忙...', '警告', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        }).then(() => {
+                            //点击确定的操作(调用接口)
+                            this.addDialog = false;
+                        }).catch(() => {
+                            //点击取消的操作
+                        });
+                    }
+                });
+            },
+
+            // 修改前,根据id查询联系人信息,并回显数据
+            findContactById(id){
+                axios({
+                    method:"get",
+                    url:`/account/findAccountByID?id=`+id
+                }).
+                then(resp=>{
+                    // 将查询结果赋值给model中的contact
+                    this.contact = resp.data;
+                    // 打开对话框
+                    this.updateDialog = true;
+                });
+
+            },
+
+            // 修改联系人信息
+            updateContact(){
+                axios({
+                    method:"post",
+                    url:`/account/updateAccount`,
+                    params:this.contact}).
+                then(resp=>{
+                    if(resp.data){
+                        // 关闭对话框
+                        this.updateDialog = false;
+                        // 分页查询数据
+                        this.findAll();
+                    }else{
+                        this.$confirm('服务器忙...', '警告', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        }).then(() => {
+                            //点击确定的操作(调用接口)
+                            this.updateDialog = false;
+                        }).catch(() => {
+                            //点击取消的操作
+                        });
+                    }
+                });
+            },
+
+            deleteContact(id){
+                this.$confirm('此操作将永久删除联系人 ' + ', 是否继续?', '提示', {
+                    type: 'warning'
+                }).then(() => {
+                    // this.$message.success("删除成功");
+                    // this.getUserList();
+
+                    axios.get("/account/deleteAccount?id=" + id).then(response => {
+                        if (response.data) {
+                            this.findAll();
+                        } else {
+                            alert("服务器忙...");
+                        }
+                    }).finally(() => {
+                        this.findAll();
+                    });
+
+                }).catch(() => {
+                    this.$message.info('已取消操作!')
+                });
+            },
+            //查询
+
+        },
+
+        created(){
+            axios.get(`/account/findAll`).then(resp=>{
+                this.tableData = resp.data;
+
+            })
+        }
+
+    })
+</script>
+</html>
